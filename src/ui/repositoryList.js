@@ -2,15 +2,15 @@ import React from "react";
 import { observer, inject } from "mobx-react";
 import { PENDING, REJECTED, FULFILLED } from "mobx-utils";
 import { Spinner, Button } from "@blueprintjs/core";
-export default inject("repoStore", "sessionStore")(
+export default inject("repoStore", "sessionStore", "viewStore")(
   observer(
     class RepositoryList extends React.Component {
-      constructor({ repoStore, sessionStore }) {
+      constructor({ repoStore, sessionStore, viewStore}) {
         super();
         repoStore.fetchRepos();
       }
       renderRepoList() {
-        const {sessionStore, repoStore} = this.props;
+        const {sessionStore, repoStore, viewStore} = this.props;
 
         if (sessionStore.authenticated) {
           const repoDeferred = repoStore.repoDeferred;
@@ -36,8 +36,13 @@ export default inject("repoStore", "sessionStore")(
             }
             case FULFILLED: {
               const repos = repoDeferred.value;
-              // TODO: implement list of repos
-              break;
+                const buttons = repos.map((value) => {
+                    return  <Button
+                        className="pt-button pt-minimal pt-icon-edit"
+                        onClick={() => viewStore.push(viewStore.routes.issue({repo: value.name}))}
+                        text={value.name}/>;
+                });
+                return (buttons);
             }
             default: {
               console.error("deferred state not supported", state);

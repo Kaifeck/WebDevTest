@@ -2,7 +2,7 @@ import { extendObservable, action, when } from "mobx";
 import { fromPromise, REJECTED } from "mobx-utils";
 
 export default class Repo {
-  constructor({ githubAPI, sessionStore }) {
+  constructor({ githubAPI, sessionStore, viewStore }) {
     extendObservable(this, {
       repoDeferred: null,
       fetchRepos: action("fetchRepos", () => {
@@ -21,10 +21,10 @@ export default class Repo {
           }
         );
       }),
-      postIssue: action("postIssue", () => {
+      postIssue: action("postIssue", (repo) => {
         githubAPI.postIssue({
           login: sessionStore.userDeferred.value.login,
-          repo: "WebDevTest"
+          repo: repo
         });
       })
     });

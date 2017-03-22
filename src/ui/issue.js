@@ -2,104 +2,148 @@ import MobxReactForm from "mobx-react-form";
 import React from "react";
 import { observer, Provider, inject } from "mobx-react";
 import { extendObservable } from "mobx";
-import { fromPromise } from "mobx-utils";
-import { Button, Intent, Toaster, Position } from "@blueprintjs/core";
+import { fromPromise, PENDING, REJECTED, FULFILLED } from "mobx-utils";
+import { Button, Intent, Toaster, Position, Spinner } from "@blueprintjs/core";
 import validatorjs from "validatorjs";
 import FormInput from './formInput';
 
 const plugins = { dvr: validatorjs };
 
 const fields = [
-  {
-    name: "title",
-    label: "Title",
-    placeholder: "Issue Title",
-    rules: "required|string|between:5,10"
-  },
-  {
-    name: "text",
-    label: "Text",
-    placeholder: "Issue Description",
-    rules: "required|string|between:5,25"
-  }
+    {
+        name: "title",
+        label: "Title",
+        placeholder: "Issue Title",
+        rules: "required|string|between:5,10"
+    },
+    {
+        name: "text",
+        label: "Text",
+        placeholder: "Issue Description",
+        rules: "required|string|between:5,25"
+    }
 ];
 
 class IssueForm extends MobxReactForm {
-  constructor(fields, options, issueStore, repo) {
-    super(fields, options);
-    this.issueStore = issueStore;
-    this.repo = repo;
+    constructor(fields, options, issueStore, repo) {
+        super(fields, options);
+        this.issueStore = issueStore;
+        this.repo = repo;
 
-    extendObservable(this, {
-      issuePostDeferred: fromPromise(Promise.resolve())
-    });
-  }
+        extendObservable(this, {
+            issuePostDeferred: fromPromise(Promise.resolve())
+        });
+    }
 
-  onSuccess(form) {
-    const { title, text } = form.values();
-    const resultPromise = this.issueStore.postIssue(this.repo, title, text);
-    resultPromise
-      .then(() => Toaster.create({ position: Position.TOP }).show({
-        message: "issue posted",
-        intent: Intent.SUCCESS
-      }))
-      .catch(() => Toaster.create({ position: Position.TOP }).show({
-        message: "failed posting issue",
-        action: { text: "retry", onClick: () => form.submit() },
-        intent: Intent.DANGER
-      }));
-    this.issuePostDeferred = fromPromise(resultPromise);
-  }
+    onSuccess(form) {
+        const { title, text } = form.values();
+        const resultPromise = this.issueStore.postIssue(this.repo, title, text);
+        resultPromise
+            .then(() => Toaster.create({ position: Position.TOP }).show({
+                message: "issue posted",
+                intent: Intent.SUCCESS
+            }))
+            .catch(() => Toaster.create({ position: Position.TOP }).show({
+                message: "failed posting issue",
+                action: { text: "retry", onClick: () => form.submit() },
+                intent: Intent.DANGER
+            }));
+        this.issuePostDeferred = fromPromise(resultPromise);
+    }
 }
 
 const FormComponent = inject("form")(
-  observer(function({ form }) {
-    return (
-      <form onSubmit={form.onSubmit}>
+    observer(function({ form }) {
+        return (
+            <form onSubmit={form.onSubmit}>
 
-        <FormInput form={form} field="title" />
-        <FormInput form={form} field="text" />
+                <FormInput form={form} field="title" />
+                <FormInput form={form} field="text" />
 
-        {form.issuePostDeferred.case({
-          pending: () => <Button type="submit" loading={true} text="submit" />,
-          rejected: () => (
-            <Button type="submit" className="pt-icon-repeat" text="submit" />
-          ),
-          fulfilled: () => (
-            <Button type="submit" onClick={form.onSubmit} text="submit" />
-          )
-        })}
-        <Button onClick={form.onClear} text="clear" />
-        <Button onClick={form.onReset} text="reset" />
+                {form.issuePostDeferred.case({
+                    pending: () => <Button type="submit" loading={true} text="submit" />,
+                    rejected: () => (
+                        <Button type="submit" className="pt-icon-repeat" text="submit" />
+                    ),
+                    fulfilled: () => (
+                        <Button type="submit" onClick={form.onSubmit} text="submit" />
+                    )
+                })}
+                <Button onClick={form.onClear} text="clear" />
+                <Button onClick={form.onReset} text="reset" />
 
-        <p>{form.error}</p>
-      </form>
-    );
-  })
+                <p>{form.error}</p>
+            </form>
+        );
+    })
 );
 
-export default inject("issueStore")(
-  observer(
-    class IssueFormComponent extends React.Component {
-      constructor({ issueStore, route }) {
-        super();
-        this.state = {
-          form: new IssueForm({ fields }, { plugins }, issueStore, route.params.repo)
-        };
-      }
-      render() {
-        const { form } = this.state;
-        const {route} = this.props;
+export default inject("issueStore", "sessionStore", "viewStore")(
+    observer(
+        class IssueFormComponent extends React.Component {
+            constructor({ issueStore, route }) {
+                super();
+                //console.log(route.params.repo);
+                issueStore.fetchIssues(route.params.repo);
+                this.state = {
+                    form: new IssueForm({ fields }, { plugins }, issueStore, route.params.repo)
+                };
+            }
+            renderRepoList() {
+                const {sessionStore, issueStore, viewStore} = this.props;
 
-        return (
-          <Provider form={form}>
-            <div>
-            <h3>issue for {route.params.repo}</h3>
-            <FormComponent />
-            </div>
-          </Provider>
-        );
-      }
-    }
-  )
+                if (sessionStore.authenticated) {
+                    const issueDeferred = issueStore.issueDeferred;
+                    const state = issueDeferred.state;
+                    switch (state) {
+                        case PENDING: {
+                            return <Spinner />;
+                        }
+                        case REJECTED: {
+                            return (
+                                <div className="pt-non-ideal-state">
+                                    <div
+                                        className="pt-non-ideal-state-visual pt-non-ideal-state-icon"
+                                    >
+                                        <span className="pt-icon pt-icon-error" />
+                                    </div>
+                                    <h4 className="pt-non-ideal-state-title">Error occured</h4>
+                                    <div className="pt-non-ideal-state-description">
+                                    </div>
+                                </div>
+                            );
+                        }
+                        case FULFILLED: {
+                            const issues = issueDeferred.value;
+                            const buttons = issues.map((value) => {
+                                return  value;
+                            });
+                            return (buttons);
+                        }
+                        default: {
+                            console.error("deferred state not supported", state);
+                        }
+                    }
+                } else {
+                    return <h1>NOT AUTHENTICATED </h1>;
+                }
+            }
+            render() {
+                const { form } = this.state;
+                const {route} = this.props;
+                const {issues} = this.renderRepoList();
+                console.log(issues);
+
+                return (
+                    <Provider form={form}>
+                        <div>
+                            <h3>issue for {route.params.repo}</h3>
+                            <FormComponent />
+                            <h1>{issues}</h1>
+                        </div>
+                    </Provider>
+                );
+            }
+        }
+    )
 );

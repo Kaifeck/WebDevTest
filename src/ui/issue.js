@@ -82,6 +82,7 @@ const IssueTable = ({issues, editTitle, editBody, updateIssue}) => {
     return (
         <div>
             <div>
+                <h2>New Title & Content go here</h2>
                 <input  onChange={editTitle}/><input onChange={editBody}/>
             </div>
             <table>

@@ -55,7 +55,7 @@ export default class GithubAPI {
   };
 
   repoIssues = ({login, repo}) => {
-    console.log(repo);
+    console.log(`Fetching issues from https://api.github.com/repos/${login}/${repo}/issues`);
     return fetch(`https://api.github.com/repos/${login}/${repo}/issues`, {
       method: "GET",
       headers: {
@@ -68,5 +68,27 @@ export default class GithubAPI {
         return Promise.reject();
       }
     });
-  }
+  };
+  patchIssue = ({ login, repo, title, text, number }) => {
+    return fetch(`https://api.github.com/repos/${login}/${repo}/issues/${number}`, {
+      method: "PATCH",
+      headers: {
+        ...this.defaultHeaders,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        title: title,
+        body: text
+      })
+    }).then(response => {
+      if (response.ok) {
+        console.log('made it');
+        return response.json();
+      } else {
+        console.log('lolno');
+        return Promise.reject();
+      }
+    });
+  };
+
 }

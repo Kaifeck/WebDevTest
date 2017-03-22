@@ -24,7 +24,6 @@ export default class IssueStore {
             // ... then
             () => {
               const userDeferred = sessionStore.userDeferred;
-              console.log(repo);
               this.issueDeferred = fromPromise(
                   githubAPI.repoIssues({
                     login: sessionStore.userDeferred.value.login,
@@ -32,6 +31,15 @@ export default class IssueStore {
               );
             }
         );
+      }),
+      updateIssue: action("updateIssue", (repo, title, text, number) => {
+        return githubAPI.patchIssue({
+          login: sessionStore.userDeferred.value.login,
+          repo,
+          title,
+          text,
+          number
+        });
       })
     });
   }

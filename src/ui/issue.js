@@ -78,18 +78,69 @@ const FormComponent = inject("form")(
     })
 );
 
+const IssueTable = ({issues, editTitle, editBody, updateIssue}) => {
+    return (
+        <div>
+            <div>
+                <input  onChange={editTitle}/><input onChange={editBody}/>
+            </div>
+            <table>
+                <thead>
+                <tr>
+                    <td>Title</td>
+                    <td>Body</td>
+                    <td>Edit</td>
+                </tr>
+                </thead>
+                <tbody>
+                {
+                    issues.map((value) => {
+                        return <IssueComponent title={value.title} body={value.body} onclick={updateIssue} number={value.number}/>
+                    })
+                }
+                </tbody>
+            </table>
+        </div>
+    )
+};
+
+const IssueComponent = ({title, body, onclick, number}) => {
+    return (
+        <tr>
+            <td>{title}</td><td>{body}</td><td><Button value={number} onClick={onclick} text="edit"/></td>
+        </tr>
+    )
+};
+
 export default inject("issueStore", "sessionStore", "viewStore")(
     observer(
         class IssueFormComponent extends React.Component {
             constructor({ issueStore, route }) {
                 super();
-                //console.log(route.params.repo);
                 issueStore.fetchIssues(route.params.repo);
                 this.state = {
-                    form: new IssueForm({ fields }, { plugins }, issueStore, route.params.repo)
+                    form: new IssueForm({ fields }, { plugins }, issueStore, route.params.repo),
+                    editTitle: null,
+                    editBody: null
                 };
             }
-            renderRepoList() {
+            updateTitle = (e) => {
+                this.setState({
+                    editTitle: e.target.value
+                })
+            };
+            updateBody = (e) => {
+                this.setState({
+                    editBody: e.target.value
+                })
+            };
+            updateEntry = (number) => {
+                const {route, issueStore} = this.props;
+                issueStore.updateIssue(
+                    route.params.repo, this.state.editTitle, this.state.editBody, number.target.value
+                )
+            };
+            renderIssueList() {
                 const {sessionStore, issueStore, viewStore} = this.props;
 
                 if (sessionStore.authenticated) {
@@ -97,6 +148,7 @@ export default inject("issueStore", "sessionStore", "viewStore")(
                     const state = issueDeferred.state;
                     switch (state) {
                         case PENDING: {
+                            console.log('pending');
                             return <Spinner />;
                         }
                         case REJECTED: {
@@ -108,6 +160,7 @@ export default inject("issueStore", "sessionStore", "viewStore")(
                                         <span className="pt-icon pt-icon-error" />
                                     </div>
                                     <h4 className="pt-non-ideal-state-title">Error occured</h4>
+                                    <Button onClick={issueStore.fetchIssues} text="retry"/>
                                     <div className="pt-non-ideal-state-description">
                                     </div>
                                 </div>
@@ -115,10 +168,7 @@ export default inject("issueStore", "sessionStore", "viewStore")(
                         }
                         case FULFILLED: {
                             const issues = issueDeferred.value;
-                            const buttons = issues.map((value) => {
-                                return  value;
-                            });
-                            return (buttons);
+                            return <IssueTable issues={issues} editTitle={this.updateTitle} editBody={this.updateBody} updateIssue={this.updateEntry}/>;
                         }
                         default: {
                             console.error("deferred state not supported", state);
@@ -131,15 +181,13 @@ export default inject("issueStore", "sessionStore", "viewStore")(
             render() {
                 const { form } = this.state;
                 const {route} = this.props;
-                const {issues} = this.renderRepoList();
-                console.log(issues);
 
                 return (
                     <Provider form={form}>
                         <div>
                             <h3>issue for {route.params.repo}</h3>
                             <FormComponent />
-                            <h1>{issues}</h1>
+                            {this.renderIssueList()}
                         </div>
                     </Provider>
                 );
